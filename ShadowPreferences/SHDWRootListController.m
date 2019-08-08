@@ -26,14 +26,7 @@
 }
 
 - (void)respring:(id)sender {
-    // Use sbreload if available.
-    if([[NSFileManager defaultManager] fileExistsAtPath:@"/usr/bin/sbreload"]) {
-        pid_t pid;
-        const char *args[] = {"sbreload", NULL, NULL, NULL};
-        posix_spawn(&pid, "/usr/bin/sbreload", NULL, NULL, (char *const *)args, NULL);
-    } else {
-        [HBRespringController respring];
-    }
+    [HBRespringController respring];
 }
 
 - (void)reset:(id)sender {
