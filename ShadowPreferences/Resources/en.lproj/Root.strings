@@ -38,10 +38,6 @@
 "DYNAMIC_LINKER_FOOTER_TEXT" = "Prevents apps from detecting Substrate or Substitute via exported hooking functions. May be unstable in some apps, causing crashes or other issues.";
 "FILTER_DYNAMIC_LINKER" = "Filter Dynamic Linker";
 
-"SANDBOX_INTEGRITY_GROUP" = "Sandbox Integrity";
-"SANDBOX_INTEGRITY_FOOTER_TEXT" = "Attempts to restore sandbox functionality. Intended for iOS 10 and lower. Not necessary for iOS 11 and up, but may be useful as a last resort.";
-"TOGGLE_RESTORE_SANDBOX" = "Restore Sandbox";
-
 "TWEAK_COMPAT_GROUP" = "Tweak Compatibility";
 "TWEAK_COMPAT_FOOTER_TEXT" = "Compatibility settings reduce bypass effectiveness in exchange for tweak functionality.";
 "DISABLE_TWEAK_COMPAT" = "Disable Tweak Compatibility";
