@@ -1347,7 +1347,11 @@ static void dyld_image_added(const struct mach_header *mh, intptr_t slide) {
 
     return %orig;
 }
-/*
+%end
+%end
+
+%group hook_openurl
+%hook UIApplication
 - (BOOL)openURL:(NSURL *)url {
     if([_shadow isURLRestricted:url]) {
         return NO;
@@ -1364,7 +1368,6 @@ static void dyld_image_added(const struct mach_header *mh, intptr_t slide) {
 
     %orig;
 }
-*/
 %end
 %end
 
@@ -3449,6 +3452,10 @@ static ssize_t hook_readlinkat(int fd, const char *path, char *buf, size_t bufsi
 
                 if([prefs boolForKey:@"standardize_paths"]) {
                     [_shadow setUsePathStandardization:YES];
+                }
+
+                if([prefs boolForKey:@"prevent_open_url"]) {
+                    %init(hook_openurl);
                 }
 
                 NSLog(@"enabled lockdown mode");

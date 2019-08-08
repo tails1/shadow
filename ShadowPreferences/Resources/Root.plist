@@ -417,6 +417,18 @@
 			<key>label</key>
 			<string>TOGGLE_PATH_RESOLVE</string>
 		</dict>
+		<dict>
+			<key>cell</key>
+			<string>PSSwitchCell</string>
+			<key>default</key>
+			<false/>
+			<key>defaults</key>
+			<string>me.jjolano.shadow</string>
+			<key>key</key>
+			<string>prevent_open_url</string>
+			<key>label</key>
+			<string>TOGGLE_OPEN_URL</string>
+		</dict>
 
 		<!-- Footer -->
 		<dict>
