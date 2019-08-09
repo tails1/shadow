@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <spawn.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -32,6 +34,13 @@ int main(int argc, char *argv[], char *envp[]) {
         if(getuid() != 0) {
             // Failed.
             printf("error: failed to get root privileges.\n");
+            return -1;
+        }
+    }
+
+    if(![[NSFileManager defaultManager] fileExistsAtPath:@"/Library/Shadow"]) {
+        if(mkdir("/Library/Shadow", S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH) == -1) {
+            printf("error: failed to create data directory.\n");
             return -1;
         }
     }
