@@ -1,0 +1,3 @@
+#!/bin/sh
+echo Removing Shadow generated files...
+rm -rf /Library/Shadow
