@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <spawn.h>
 #include <sys/wait.h>
-#include <sys/stat.h>
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
@@ -33,29 +32,92 @@ int main(int argc, char *argv[], char *envp[]) {
 		if(getuid() != 0) {
 			// Failed.
 			printf("error: failed to get root privileges.\n");
+			return -1;
 		}
 	}
 
-	// Mount orig-fs.
-	if(mount_apfs_snapshot("orig-fs", "/", "/var/MobileSoftwareUpdate/mnt1") != 0) {
-		printf("error: failed to mount orig-fs.\n");
-		return -1;
+	// Generate orig-fs file map if it doesn't exist.
+	if(![[NSFileManager defaultManager] fileExistsAtPath:@"/Library/Shadow/orig-fs.plist"]) {
+		// Mount orig-fs.
+		if(mount_apfs_snapshot("orig-fs", "/", "/var/MobileSoftwareUpdate/mnt1") != 0) {
+			printf("error: failed to mount orig-fs.\n");
+			return -1;
+		}
+
+		// Enumerate snapshot files and compile into a plist.
+		NSMutableDictionary *origfs_plist = [NSMutableDictionary new];
+		NSDirectoryEnumerator *origfs_enum = [[NSFileManager defaultManager] enumeratorAtPath:@"/var/MobileSoftwareUpdate/mnt1"];
+
+		NSString *file;
+		BOOL *isDir;
+
+		while((file = [origfs_enum nextObject])) {
+			if([[NSFileManager defaultManager] fileExistsAtPath:file isDirectory:&isDir]) {
+				origfs_plist[file] = isDir;
+			}
+		}
+
+		// Write plist to Shadow data directory.
+		[origfs_plist writeToFile:@"/Library/Shadow/orig-fs.plist" atomically:YES];
 	}
 
-	// Enumerate snapshot files and compile into a plist.
-	NSMutableDictionary *plist = [NSMutableDictionary new];
-	NSDirectoryEnumerator *dirEnum = [[NSFileManager defaultManager] enumeratorAtPath:@"/var/MobileSoftwareUpdate/mnt1"];
+	// Generate dpkg file map.
+	NSMutableSet dpkg_plist = [NSMutableSet new];
+	NSMutableSet urlscheme_plist = [NSMutableSet new];
+	NSString *dpkg_path = @"/var/lib/dpkg/info";
+	NSArray *dpkg_enum = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dpkg_path error:nil];
 
-	NSString *file;
-	BOOL *isDir;
+	if(dpkg_enum) {
+		for(NSString *file in dpkg_enum) {
+			if([[file pathExtension] isEqualToString:@"list"]) {
+				// Skip some packages.
+                if([file isEqualToString:@"firmware-sbin.list"]
+                || [file hasPrefix:@"gsc."]
+                || [file hasPrefix:@"cy+"]) {
+                    continue;
+                }
 
-	while((file = [dirEnum nextObject])) {
-		if([[NSFileManager defaultManager] fileExistsAtPath:file isDirectory:&isDir]) {
-			plist[file] = isDir;
+				NSString *file_abs = [dpkg_path stringByAppendingPathComponent:file];
+				NSString *file_contents = [NSString stringWithContentsOfFile:file_abs encoding:NSUTF8StringEncoding error:NULL];
+
+				if(file_contents) {
+					NSArray *dpkg_files = [file_contents componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+
+					for(NSString *dpkg_file in dpkg_files) {
+						if([dpkg_file hasPrefix:@"/Applications"] && [[dpkg_file pathExtension] isEqualToString:@"app"]) {
+                            BOOL isDir;
+
+                            if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && isDir) {
+                                // Open Info.plist
+								NSMutableDictionary *plist_info = [NSMutableDictionary dictionaryWithContentsOfFile:[dpkg_file stringByAppendingPathComponent:@"Info.plist"]];
+
+								if(plist_info) {
+									for(NSDictionary *type in plist_info[@"CFBundleURLTypes"]) {
+										for(NSString *scheme in type[@"CFBundleURLSchemes"]) {
+											[urlscheme_plist addObject:scheme];
+										}
+									}
+								}
+                            }
+
+							continue;
+                        }
+
+						BOOL isDir;
+
+                        if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && !isDir) {
+                            if(!isDir) {
+                                [dpkg_plist addObject:dpkg_file];
+                            }
+                        }
+					}
+				}
+			}
 		}
 	}
 
-	// Write plist to Shadow data directory.
-	[plist writeToFile:@"/Library/Shadow/orig-fs.map.plist" atomically:YES];
+	[[dpkg_plist allObjects] writeToFile:@"/Library/Shadow/dpkg.plist" atomically:YES];
+	[[urlscheme_plist allObjects] writeToFile:@"/Library/Shadow/urlscheme.plist" atomically:YES];
+
 	return 0;
 }
