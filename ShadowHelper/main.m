@@ -58,11 +58,11 @@ int main(int argc, char *argv[], char *envp[]) {
         NSDirectoryEnumerator *origfs_enum = [[NSFileManager defaultManager] enumeratorAtPath:@"/var/MobileSoftwareUpdate/mnt1"];
 
         NSString *file;
-        BOOL *isDir;
+        BOOL isDir;
 
         while((file = [origfs_enum nextObject])) {
             if([[NSFileManager defaultManager] fileExistsAtPath:file isDirectory:&isDir]) {
-                origfs_plist[file] = isDir;
+                origfs_plist[file] = @(isDir);
             }
         }
 
@@ -71,8 +71,8 @@ int main(int argc, char *argv[], char *envp[]) {
     }
 
     // Generate dpkg file map.
-    NSMutableSet dpkg_plist = [NSMutableSet new];
-    NSMutableSet urlscheme_plist = [NSMutableSet new];
+    NSMutableSet *dpkg_plist = [NSMutableSet new];
+    NSMutableSet *urlscheme_plist = [NSMutableSet new];
     NSString *dpkg_path = @"/var/lib/dpkg/info";
     NSArray *dpkg_enum = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dpkg_path error:nil];
 
