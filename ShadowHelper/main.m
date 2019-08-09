@@ -45,8 +45,15 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
+    NSURL *shadowdata_url = [NSURL fileURLWithPath:@"/Library/Shadow/shadowdata.plist"];
+    NSMutableDictionary *shadowdata = [NSMutableDictionary dictionaryWithContentsOfURL:shadowdata_url];
+
+    if(!shadowdata) {
+        shadowdata = [NSMutableDictionary new];
+    }
+
     // Generate orig-fs file map if it doesn't exist.
-    if(![[NSFileManager defaultManager] fileExistsAtPath:@"/Library/Shadow/orig-fs.plist"]) {
+    if(!shadowdata[@"orig-fs"]) {
         // Mount orig-fs.
         if(mount_apfs_snapshot("orig-fs", "/", "/var/MobileSoftwareUpdate/mnt1") != 0) {
             printf("error: failed to mount orig-fs.\n");
@@ -61,13 +68,16 @@ int main(int argc, char *argv[], char *envp[]) {
         BOOL isDir;
 
         while((file = [origfs_enum nextObject])) {
-            if([[NSFileManager defaultManager] fileExistsAtPath:file isDirectory:&isDir]) {
-                origfs_plist[file] = @(isDir);
+            NSString *file_abs = [NSString stringWithFormat:@"/var/MobileSoftwareUpdate/mnt1/%@", file];
+            NSString *file_abs_orig = [NSString stringWithFormat:@"/%@", file];
+
+            if([[NSFileManager defaultManager] fileExistsAtPath:file_abs isDirectory:&isDir]) {
+                origfs_plist[file_abs_orig] = @(isDir);
             }
         }
 
-        // Write plist to Shadow data directory.
-        [origfs_plist writeToFile:@"/Library/Shadow/orig-fs.plist" atomically:YES];
+        // Write to Shadow data.
+        shadowdata[@"orig-fs"] = origfs_plist;
     }
 
     // Generate dpkg file map.
@@ -98,7 +108,8 @@ int main(int argc, char *argv[], char *envp[]) {
 
                             if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && isDir) {
                                 // Open Info.plist
-                                NSMutableDictionary *plist_info = [NSMutableDictionary dictionaryWithContentsOfFile:[dpkg_file stringByAppendingPathComponent:@"Info.plist"]];
+                                NSURL *plist_info_url = [NSURL fileURLWithPath:[dpkg_file stringByAppendingPathComponent:@"Info.plist"]];
+                                NSMutableDictionary *plist_info = [NSMutableDictionary dictionaryWithContentsOfURL:plist_info_url];
 
                                 if(plist_info) {
                                     for(NSDictionary *type in plist_info[@"CFBundleURLTypes"]) {
@@ -115,9 +126,7 @@ int main(int argc, char *argv[], char *envp[]) {
                         BOOL isDir;
 
                         if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && !isDir) {
-                            if(!isDir) {
-                                [dpkg_plist addObject:dpkg_file];
-                            }
+                            [dpkg_plist addObject:dpkg_file];
                         }
                     }
                 }
@@ -125,8 +134,13 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
-    [[dpkg_plist allObjects] writeToFile:@"/Library/Shadow/dpkg.plist" atomically:YES];
-    [[urlscheme_plist allObjects] writeToFile:@"/Library/Shadow/urlscheme.plist" atomically:YES];
+    // Write to Shadow data.
+    shadowdata[@"dpkg"] = [dpkg_plist allObjects];
+    shadowdata[@"url_schemes"] = [urlscheme_plist allObjects];
+
+    if(![shadowdata writeToURL:shadowdata_url error:nil]) {
+        return -1;
+    }
 
     return 0;
 }

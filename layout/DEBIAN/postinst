@@ -1,5 +1,5 @@
 #!/bin/sh
-echo Generating initial detection bypass files...
+echo Generating detection bypass files at /Library/Shadow ...
 chmod u+s /usr/bin/ShadowHelper
 mkdir -m 644 -p /Library/Shadow
 /usr/bin/ShadowHelper > /dev/null
