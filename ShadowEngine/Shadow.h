@@ -8,7 +8,7 @@
     NSMutableSet *url_schemes;
 }
 
-+ (instancetype)shadowWithRules:(NSMutableDictionary *)rules url_schemes:(NSMutableSet *)url_schemes;
++ (instancetype)shadowWithRules:(NSMutableDictionary *)rules andURLSchemes:(NSMutableSet *)url_schemes;
 
 - (NSDictionary *)exportShadowData;
 

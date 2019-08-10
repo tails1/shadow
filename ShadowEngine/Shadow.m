@@ -14,7 +14,7 @@
     return self;
 }
 
-+ (instancetype)shadowWithRules:(NSMutableDictionary *)rules url_schemes:(NSMutableSet *)url_schemes {
++ (instancetype)shadowWithRules:(NSMutableDictionary *)rules andURLSchemes:(NSMutableSet *)url_schemes {
     Shadow shadow = [Shadow new];
 
     if(shadow) {
