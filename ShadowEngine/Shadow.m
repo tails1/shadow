@@ -45,6 +45,11 @@
 
     path = [self getDestinationOfLinkAtPath:path];
 
+    if([path_exclusions containsObject:path]) {
+        [path_exclusions removeObject:path];
+        return NO;
+    }
+
     NSDictionary *path_rule = [path_rules copy];
     NSString *path_component;
     NSArray *path_components = [path pathComponents];
