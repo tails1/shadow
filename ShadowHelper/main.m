@@ -55,12 +55,11 @@ int main(int argc, char *argv[], char *envp[]) {
     NSURL *shadowdata_url = [NSURL fileURLWithPath:@"/Library/Shadow/shadowdata.plist"];
     NSMutableDictionary *shadowdata = [NSMutableDictionary dictionaryWithContentsOfURL:shadowdata_url];
 
-    Shadow shadow = [Shadow new];
+    Shadow *shadow = [Shadow new];
 
     // Generate dynamic path rules with orig-fs and dpkg.
     if(!shadowdata || !shadowdata[@"path_rules"]) {
         // Enumerate snapshot files and compile into a plist.
-        NSMutableDictionary *origfs_plist = [NSMutableDictionary new];
         NSDirectoryEnumerator *origfs_enum = [[NSFileManager defaultManager] enumeratorAtPath:@"/var/MobileSoftwareUpdate/mnt1"];
 
         NSString *file;
@@ -128,7 +127,7 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
-    shadowdata = [shadow exportShadowData];
+    shadowdata = [[shadow exportShadowData] mutableCopy];
 
     if(![shadowdata writeToURL:shadowdata_url error:nil]) {
         return -1;

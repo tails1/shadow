@@ -15,7 +15,7 @@
 }
 
 + (instancetype)shadowWithRules:(NSMutableDictionary *)rules andURLSchemes:(NSMutableSet *)url_schemes {
-    Shadow shadow = [Shadow new];
+    Shadow *shadow = [Shadow new];
 
     if(shadow) {
         [shadow addRules:rules];
@@ -142,7 +142,7 @@
         }
 
         if(path_rule) {
-            next[@"restricted"] = @(restricted);
+            path_rule[@"restricted"] = @(restricted);
             path_rule[@"exact_allowed"] = @(exact_allowed);
         }
     }
