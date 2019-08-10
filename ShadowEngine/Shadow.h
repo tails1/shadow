@@ -2,7 +2,7 @@
 #import <UIKit/UIKit.h>
 
 @interface Shadow : NSObject {
-    NSMutableDictionary *path_exclusions;
+    NSMutableSet *path_exclusions;
     NSMutableDictionary *path_symlinks;
     NSMutableDictionary *path_rules;
     NSMutableSet *url_schemes;
@@ -20,10 +20,10 @@
 - (void)setDestinationOfLinkAtPath:(NSString *)path destination:(NSString *)destination;
 - (NSString *)getDestinationOfLinkAtPath:(NSString *)path;
 
-- (void)addPathExclusion:(NSString *)path amount:(NSNumber *)amount;
-- (void)addRestrictedPath:(NSString *)path restricted:(BOOL)restricted exact_only:(BOOL)exact_only;
+- (void)addPathExclusion:(NSString *)path;
+- (void)addRestrictedPath:(NSString *)path restricted:(BOOL)restricted exact_allowed:(BOOL)exact_allowed;
 - (void)addRestrictedURLScheme:(NSString *)scheme;
 - (void)addRules:(NSMutableDictionary *)rules;
-- (void)addURLSchemes:(NSMutableSet *)url_schemes;
+- (void)addURLSchemes:(NSMutableSet *)schemes;
 
 @end
