@@ -6,6 +6,7 @@
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
+#import "../ShadowEngine/Shadow.h"
 
 int mount_apfs_snapshot(char *snapshot, char *volume, char *directory) {
     // Check if already mounted.
