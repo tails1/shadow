@@ -121,7 +121,7 @@
     [path_exclusions addObject:path];
 }
 
-- (void)addRestrictedPath:(NSString *)path restricted:(BOOL)restricted exact_allowed:(BOOL)exact_allowed {
+- (void)addRestrictedPath:(NSString *)path parent_restricted:(BOOL)parent_restricted restricted:(BOOL)restricted parent_exact_allowed:(BOOL)parent_exact_allowed exact_allowed:(BOOL)exact_allowed {
     if([path isAbsolutePath]) {
         NSMutableDictionary *path_rule = path_rules;
         NSArray *path_components = [path pathComponents];
@@ -132,8 +132,8 @@
             if(!next) {
                 next = [NSMutableDictionary new];
 
-                next[@"restricted"] = @(restricted);
-                next[@"exact_allowed"] = @NO;
+                next[@"restricted"] = @(parent_restricted);
+                next[@"exact_allowed"] = @(parent_exact_allowed);
 
                 path_rule[path_component] = next;
             }
@@ -142,6 +142,7 @@
         }
 
         if(path_rule) {
+            next[@"restricted"] = @(restricted);
             path_rule[@"exact_allowed"] = @(exact_allowed);
         }
     }

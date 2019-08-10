@@ -55,12 +55,10 @@ int main(int argc, char *argv[], char *envp[]) {
     NSURL *shadowdata_url = [NSURL fileURLWithPath:@"/Library/Shadow/shadowdata.plist"];
     NSMutableDictionary *shadowdata = [NSMutableDictionary dictionaryWithContentsOfURL:shadowdata_url];
 
-    if(!shadowdata) {
-        shadowdata = [NSMutableDictionary new];
-    }
+    Shadow shadow = [Shadow new];
 
-    // Generate orig-fs file map if it doesn't exist.
-    if(!shadowdata[@"orig-fs"]) {
+    // Generate dynamic path rules with orig-fs and dpkg.
+    if(!shadowdata || !shadowdata[@"path_rules"]) {
         // Enumerate snapshot files and compile into a plist.
         NSMutableDictionary *origfs_plist = [NSMutableDictionary new];
         NSDirectoryEnumerator *origfs_enum = [[NSFileManager defaultManager] enumeratorAtPath:@"/var/MobileSoftwareUpdate/mnt1"];
@@ -73,61 +71,56 @@ int main(int argc, char *argv[], char *envp[]) {
             NSString *file_abs_orig = [NSString stringWithFormat:@"/%@", file];
 
             if([[NSFileManager defaultManager] fileExistsAtPath:file_abs isDirectory:&isDir]) {
-                origfs_plist[file_abs_orig] = @(isDir);
+                [shadow addRestrictedPath:file_abs_orig parent_restricted:YES restricted:YES parent_exact_allowed:YES exact_allowed:YES];
             }
         }
 
-        // Write to Shadow data.
-        shadowdata[@"orig-fs"] = origfs_plist;
-    }
+        // Generate dpkg file map.
+        NSString *dpkg_path = @"/var/lib/dpkg/info";
+        NSArray *dpkg_enum = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dpkg_path error:nil];
 
-    // Generate dpkg file map.
-    NSMutableSet *dpkg_plist = [NSMutableSet new];
-    NSMutableSet *urlscheme_plist = [NSMutableSet new];
-    NSString *dpkg_path = @"/var/lib/dpkg/info";
-    NSArray *dpkg_enum = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dpkg_path error:nil];
+        if(dpkg_enum) {
+            for(NSString *file in dpkg_enum) {
+                if([[file pathExtension] isEqualToString:@"list"]) {
+                    // Skip some packages.
+                    if([file isEqualToString:@"firmware-sbin.list"]
+                    || [file hasPrefix:@"gsc."]
+                    || [file hasPrefix:@"cy+"]) {
+                        continue;
+                    }
 
-    if(dpkg_enum) {
-        for(NSString *file in dpkg_enum) {
-            if([[file pathExtension] isEqualToString:@"list"]) {
-                // Skip some packages.
-                if([file isEqualToString:@"firmware-sbin.list"]
-                || [file hasPrefix:@"gsc."]
-                || [file hasPrefix:@"cy+"]) {
-                    continue;
-                }
+                    NSString *file_abs = [dpkg_path stringByAppendingPathComponent:file];
+                    NSString *file_contents = [NSString stringWithContentsOfFile:file_abs encoding:NSUTF8StringEncoding error:NULL];
 
-                NSString *file_abs = [dpkg_path stringByAppendingPathComponent:file];
-                NSString *file_contents = [NSString stringWithContentsOfFile:file_abs encoding:NSUTF8StringEncoding error:NULL];
+                    if(file_contents) {
+                        NSArray *dpkg_files = [file_contents componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
 
-                if(file_contents) {
-                    NSArray *dpkg_files = [file_contents componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+                        for(NSString *dpkg_file in dpkg_files) {
+                            if([dpkg_file hasPrefix:@"/Applications"] && [[dpkg_file pathExtension] isEqualToString:@"app"]) {
+                                BOOL isDir;
 
-                    for(NSString *dpkg_file in dpkg_files) {
-                        if([dpkg_file hasPrefix:@"/Applications"] && [[dpkg_file pathExtension] isEqualToString:@"app"]) {
-                            BOOL isDir;
+                                if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && isDir) {
+                                    // Open Info.plist
+                                    NSURL *plist_info_url = [NSURL fileURLWithPath:[dpkg_file stringByAppendingPathComponent:@"Info.plist"]];
+                                    NSMutableDictionary *plist_info = [NSMutableDictionary dictionaryWithContentsOfURL:plist_info_url];
 
-                            if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && isDir) {
-                                // Open Info.plist
-                                NSURL *plist_info_url = [NSURL fileURLWithPath:[dpkg_file stringByAppendingPathComponent:@"Info.plist"]];
-                                NSMutableDictionary *plist_info = [NSMutableDictionary dictionaryWithContentsOfURL:plist_info_url];
-
-                                if(plist_info) {
-                                    for(NSDictionary *type in plist_info[@"CFBundleURLTypes"]) {
-                                        for(NSString *scheme in type[@"CFBundleURLSchemes"]) {
-                                            [urlscheme_plist addObject:scheme];
+                                    if(plist_info) {
+                                        for(NSDictionary *type in plist_info[@"CFBundleURLTypes"]) {
+                                            for(NSString *scheme in type[@"CFBundleURLSchemes"]) {
+                                                [shadow addRestrictedURLScheme:scheme];
+                                            }
                                         }
                                     }
                                 }
+
+                                continue;
                             }
 
-                            continue;
-                        }
+                            BOOL isDir;
 
-                        BOOL isDir;
-
-                        if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && !isDir) {
-                            [dpkg_plist addObject:dpkg_file];
+                            if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && !isDir) {
+                                [shadow addRestrictedPath:dpkg_file parent_restricted:YES restricted:YES parent_exact_allowed:NO exact_allowed:NO];
+                            }
                         }
                     }
                 }
@@ -135,9 +128,7 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
-    // Write to Shadow data.
-    shadowdata[@"dpkg"] = [dpkg_plist allObjects];
-    shadowdata[@"url_schemes"] = [urlscheme_plist allObjects];
+    shadowdata = [shadow exportShadowData];
 
     if(![shadowdata writeToURL:shadowdata_url error:nil]) {
         return -1;

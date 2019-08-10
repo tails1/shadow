@@ -21,7 +21,7 @@
 - (NSString *)getDestinationOfLinkAtPath:(NSString *)path;
 
 - (void)addPathExclusion:(NSString *)path;
-- (void)addRestrictedPath:(NSString *)path restricted:(BOOL)restricted exact_allowed:(BOOL)exact_allowed;
+- (void)addRestrictedPath:(NSString *)path parent_restricted:(BOOL)parent_restricted restricted:(BOOL)restricted parent_exact_allowed:(BOOL)parent_exact_allowed exact_allowed:(BOOL)exact_allowed;
 - (void)addRestrictedURLScheme:(NSString *)scheme;
 - (void)addRules:(NSMutableDictionary *)rules;
 - (void)addURLSchemes:(NSMutableSet *)schemes;
