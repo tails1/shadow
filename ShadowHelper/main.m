@@ -45,6 +45,12 @@ int main(int argc, char *argv[], char *envp[]) {
         }
     }
 
+    // Mount orig-fs.
+    if(mount_apfs_snapshot("orig-fs", "/", "/var/MobileSoftwareUpdate/mnt1") != 0) {
+        printf("error: failed to mount orig-fs.\n");
+        return -1;
+    }
+
     NSURL *shadowdata_url = [NSURL fileURLWithPath:@"/Library/Shadow/shadowdata.plist"];
     NSMutableDictionary *shadowdata = [NSMutableDictionary dictionaryWithContentsOfURL:shadowdata_url];
 
@@ -54,12 +60,6 @@ int main(int argc, char *argv[], char *envp[]) {
 
     // Generate orig-fs file map if it doesn't exist.
     if(!shadowdata[@"orig-fs"]) {
-        // Mount orig-fs.
-        if(mount_apfs_snapshot("orig-fs", "/", "/var/MobileSoftwareUpdate/mnt1") != 0) {
-            printf("error: failed to mount orig-fs.\n");
-            return -1;
-        }
-
         // Enumerate snapshot files and compile into a plist.
         NSMutableDictionary *origfs_plist = [NSMutableDictionary new];
         NSDirectoryEnumerator *origfs_enum = [[NSFileManager defaultManager] enumeratorAtPath:@"/var/MobileSoftwareUpdate/mnt1"];

@@ -1,4 +1,9 @@
 // Shadow by jjolano
+#ifdef DEBUG
+#define NSLog(args...) NSLog(@"[shadow] "args)
+#else
+#define NSLog(...);
+#endif
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
