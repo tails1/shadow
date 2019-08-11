@@ -6,7 +6,6 @@
 
 #import <UIKit/UIKit.h>
 #import <Foundation/Foundation.h>
-#import "../ShadowEngine/Shadow.h"
 
 int mount_apfs_snapshot(char *snapshot, char *volume, char *directory) {
     // Check if already mounted.
@@ -52,84 +51,86 @@ int main(int argc, char *argv[], char *envp[]) {
         return -1;
     }
 
-    NSURL *shadowdata_url = [NSURL fileURLWithPath:@"/Library/Shadow/shadowdata.plist"];
-    NSMutableDictionary *shadowdata = [NSMutableDictionary dictionaryWithContentsOfURL:shadowdata_url];
+    NSMutableDictionary *shadowdata = [NSMutableDictionary new];
 
-    Shadow *shadow = [Shadow new];
+	shadowdata[@"orig-fs"] = [NSMutableArray new];
+	shadowdata[@"dpkg"] = [NSMutableArray new];
+	shadowdata[@"url_schemes"] = [NSMutableArray new];
 
     // Generate dynamic path rules with orig-fs and dpkg.
-    if(!shadowdata || !shadowdata[@"path_rules"]) {
-        // Enumerate snapshot files and compile into a plist.
-        NSDirectoryEnumerator *origfs_enum = [[NSFileManager defaultManager] enumeratorAtPath:@"/var/MobileSoftwareUpdate/mnt1"];
+    // Enumerate snapshot files and compile into a plist.
+	NSDirectoryEnumerator *origfs_enum = [[NSFileManager defaultManager] enumeratorAtPath:@"/var/MobileSoftwareUpdate/mnt1"];
 
-        NSString *file;
-        BOOL isDir;
+	NSString *file;
+	BOOL isDir;
 
-        while((file = [origfs_enum nextObject])) {
-            NSString *file_abs = [NSString stringWithFormat:@"/var/MobileSoftwareUpdate/mnt1/%@", file];
-            NSString *file_abs_orig = [NSString stringWithFormat:@"/%@", file];
+	while((file = [origfs_enum nextObject])) {
+		NSString *file_abs = [NSString stringWithFormat:@"/var/MobileSoftwareUpdate/mnt1/%@", file];
+		NSString *file_abs_orig = [NSString stringWithFormat:@"/%@", file];
 
-            if([[NSFileManager defaultManager] fileExistsAtPath:file_abs isDirectory:&isDir]) {
-                [shadow addRestrictedPath:file_abs_orig parent_restricted:YES restricted:YES parent_exact_allowed:YES exact_allowed:YES];
-            }
-        }
+		if([[NSFileManager defaultManager] fileExistsAtPath:file_abs isDirectory:&isDir]) {
+			// [shadow addRestrictedPath:file_abs_orig parent_restricted:YES restricted:YES parent_exact_allowed:YES exact_allowed:YES];
+			[shadowdata[@"orig-fs"] addObject:file_abs_orig];
+		}
+	}
 
-        // Generate dpkg file map.
-        NSString *dpkg_path = @"/var/lib/dpkg/info";
-        NSArray *dpkg_enum = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dpkg_path error:nil];
+	// Generate dpkg file map.
+	NSString *dpkg_path = @"/var/lib/dpkg/info";
+	NSArray *dpkg_enum = [[NSFileManager defaultManager] contentsOfDirectoryAtPath:dpkg_path error:nil];
 
-        if(dpkg_enum) {
-            for(NSString *file in dpkg_enum) {
-                if([[file pathExtension] isEqualToString:@"list"]) {
-                    // Skip some packages.
-                    if([file isEqualToString:@"firmware-sbin.list"]
-                    || [file hasPrefix:@"gsc."]
-                    || [file hasPrefix:@"cy+"]) {
-                        continue;
-                    }
+	if(dpkg_enum) {
+		for(NSString *file in dpkg_enum) {
+			if([[file pathExtension] isEqualToString:@"list"]) {
+				// Skip some packages.
+				if([file isEqualToString:@"firmware-sbin.list"]
+				|| [file hasPrefix:@"gsc."]
+				|| [file hasPrefix:@"cy+"]) {
+					continue;
+				}
 
-                    NSString *file_abs = [dpkg_path stringByAppendingPathComponent:file];
-                    NSString *file_contents = [NSString stringWithContentsOfFile:file_abs encoding:NSUTF8StringEncoding error:NULL];
+				NSString *file_abs = [dpkg_path stringByAppendingPathComponent:file];
+				NSString *file_contents = [NSString stringWithContentsOfFile:file_abs encoding:NSUTF8StringEncoding error:NULL];
 
-                    if(file_contents) {
-                        NSArray *dpkg_files = [file_contents componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
+				if(file_contents) {
+					NSArray *dpkg_files = [file_contents componentsSeparatedByCharactersInSet:[NSCharacterSet newlineCharacterSet]];
 
-                        for(NSString *dpkg_file in dpkg_files) {
-                            if([dpkg_file hasPrefix:@"/Applications"] && [[dpkg_file pathExtension] isEqualToString:@"app"]) {
-                                BOOL isDir;
+					for(NSString *dpkg_file in dpkg_files) {
+						if([dpkg_file hasPrefix:@"/Applications"] && [[dpkg_file pathExtension] isEqualToString:@"app"]) {
+							BOOL isDir;
 
-                                if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && isDir) {
-                                    // Open Info.plist
-                                    NSURL *plist_info_url = [NSURL fileURLWithPath:[dpkg_file stringByAppendingPathComponent:@"Info.plist"]];
-                                    NSMutableDictionary *plist_info = [NSMutableDictionary dictionaryWithContentsOfURL:plist_info_url];
+							if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && isDir) {
+								// Open Info.plist
+								NSURL *plist_info_url = [NSURL fileURLWithPath:[dpkg_file stringByAppendingPathComponent:@"Info.plist"]];
+								NSMutableDictionary *plist_info = [NSMutableDictionary dictionaryWithContentsOfURL:plist_info_url];
 
-                                    if(plist_info) {
-                                        for(NSDictionary *type in plist_info[@"CFBundleURLTypes"]) {
-                                            for(NSString *scheme in type[@"CFBundleURLSchemes"]) {
-                                                [shadow addRestrictedURLScheme:scheme];
-                                            }
-                                        }
-                                    }
-                                }
+								if(plist_info) {
+									for(NSDictionary *type in plist_info[@"CFBundleURLTypes"]) {
+										for(NSString *scheme in type[@"CFBundleURLSchemes"]) {
+											// [shadow addRestrictedURLScheme:scheme];
+											[shadowdata[@"url_schemes"] addObject:scheme];
+										}
+									}
+								}
+							}
 
-                                continue;
-                            }
+							continue;
+						}
 
-                            BOOL isDir;
+						BOOL isDir;
 
-                            if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && !isDir) {
-                                [shadow addRestrictedPath:dpkg_file parent_restricted:YES restricted:YES parent_exact_allowed:NO exact_allowed:NO];
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
+						if([[NSFileManager defaultManager] fileExistsAtPath:dpkg_file isDirectory:&isDir] && !isDir) {
+							// [shadow addRestrictedPath:dpkg_file parent_restricted:YES restricted:YES parent_exact_allowed:NO exact_allowed:NO];
+							[shadowdata[@"dpkg"] addObject:dpkg_file];
+						}
+					}
+				}
+			}
+		}
+	}
 
-    shadowdata = [[shadow exportShadowData] mutableCopy];
-
+	NSURL *shadowdata_url = [NSURL fileURLWithPath:@"/Library/Shadow/shadowdata.plist"];
     if(![shadowdata writeToURL:shadowdata_url error:nil]) {
+		printf("error: failed to write data\n");
         return -1;
     }
 
