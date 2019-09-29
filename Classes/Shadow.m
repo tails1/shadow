@@ -169,6 +169,7 @@
     || [name hasPrefix:@"/Library/TweakInject"]
     || [name hasPrefix:@"/usr/bin/substitute-inject"]
     || [name hasPrefix:@"/usr/lib/Cephei.framework/Cephei"]
+    || [name hasPrefix:@"/usr/lib/CepheiUI.framework/CepheiUI"]
     || [name hasPrefix:@"/usr/lib/librocketbootstrap.dylib"]
     || [name hasPrefix:@"/usr/lib/substitute-inserter.dylib"]
     || [name hasPrefix:@"/usr/lib/substitute-loader.dylib"]
